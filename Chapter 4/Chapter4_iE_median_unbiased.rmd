@@ -1,0 +1,150 @@
+---
+title: "Median_exp"
+author: "Tian Qin"
+date: "2024-02-18"
+output: html_document
+---
+
+## Median Exponential original iE
+
+```{r}
+set.seed(1234)
+require(latex2exp)
+lambda <- 5
+
+n <- 20
+
+simulation_times <- 10000
+
+iteration_times <- 100
+bootstrap_times <- 20
+
+ite_median_est <- matrix(0,nrow=simulation_times,ncol=iteration_times+1)
+V <- matrix(0,nrow=simulation_times,ncol=iteration_times+1)
+for(t in 1:simulation_times){
+  
+  sample_exp <- rexp(n,rate=lambda)
+  median_est <- median(sample_exp)#log(2)*mean(sample_exp)
+  #ite_mle <- c()
+  ite_median_est[t,1] <- median_est
+
+  for( i in 1:iteration_times){
+    Boot <- c()
+    for(j in 1:bootstrap_times){
+      exp_sample <- rexp(n,rate=log(2)/ite_median_est[t,i])
+      Boot[j] <- median(exp_sample)
+    }
+    #V[i+1] <- 0.9*V[i]+0.1*0.5*i^(-0.7)*(-mean(Boot)+ite_mle[t,1])
+    ite_median_est[t,i+1] <- ite_median_est[t,i]+i^(-0.7)*(-mean(Boot)+ite_median_est[t,1])
+    
+    
+  }
+  V[t,] <- cumsum(ite_median_est[t,])/c(1:length(ite_median_est[t,]))
+}
+
+
+# ite_mle2 <- c()
+# ite_mle2[1] <- mle
+# iteration_times <- 30
+# bootstrap_times <- 10000
+# for( i in 1:iteration_times){
+#   Boot <- c()
+#   for(j in 1:bootstrap_times){
+#     exp_sample <- rexp(n,rate=ite_mle2[i])
+#     Boot[j] <- 1/mean(exp_sample)
+#   }
+#   ite_mle2[i+1] <- ite_mle2[1]-(mean(Boot)-ite_mle2[i])
+#   
+#   
+# }
+
+
+plot(seq(1,iteration_times+1),colMeans(ite_median_est),xlab=expression(paste('iteration times', ~k)),ylab=TeX("$\\hat{\\theta}_k$"),main='Accelerated iE averaged by 1000 experiments')
+# points(seq(1,iteration_times+1),colMeans(V)+2*apply(V, 2, sd),type='l')
+# points(seq(1,iteration_times+1),colMeans(V)-2*apply(V, 2, sd),type='l')
+# points(seq(1,iteration_times+1),cummu_ite,type='l')
+abline(h=log(2)/lambda,col='red')
+abline(h=mean(ite_median_est[,1]),col='blue')
+legend('topright',legend=c('Empirical median','true median','iE'),col=c('blue','red','black'),lty=c(1,1,NA),pch=c(NA,NA,1))
+
+
+
+
+
+```
+
+
+
+
+# Exp(rate=5), n=20, 
+
+We did a simulation based on bootstrap and analytical formula.
+
+Iteration times is 30. Number of repetition is 10000 Bootstrap times is 100.
+
+```{r,cache=TRUE}
+library(pracma)  # find median of a cdf
+library(matrixStats) #colMedian
+median_fn_scale <- function(t,lambda,n){ # find a median of MLE of lambda
+    
+fn <-   1-pgamma(n/t,shape=n,rate=lambda) -1/2 #as.numeric(gammainc(n*lambda/t,n)[1]) /gamma(n)  -1/2
+
+return(fn)
+}
+
+find_sol <- function(lambda,n){
+# 
+  ans_temp <- uniroot(median_fn_scale, c(0.01, 20), tol = 0.0001,lambda=lambda,n=n)$root
+  return(ans_temp)
+}
+
+set.seed(1234)
+require(latex2exp)
+lambda <- 5
+
+n <- 20
+
+simulation_times <- 10000
+
+iteration_times <- 200
+bootstrap_times <- 20
+
+ite_median_est <- matrix(0,nrow=simulation_times,ncol=iteration_times+1)
+V <- matrix(0,nrow=simulation_times,ncol=iteration_times+1)
+ana_median <- c()
+for(t in 1:simulation_times){
+  
+  sample_exp <- rexp(n,rate=lambda)
+  median_est <- 1/mean(sample_exp)
+  #ite_mle <- c()
+  ite_median_est[t,1] <- median_est
+
+  for( i in 1:iteration_times){
+    Boot <- c()
+    for(j in 1:bootstrap_times){
+      exp_sample <- rexp(n,rate=ite_median_est[t,i])
+      Boot[j] <-1/mean(exp_sample) #median(exp_sample)
+    }
+    #V[i+1] <- 0.9*V[i]+0.1*0.5*i^(-0.7)*(-mean(Boot)+ite_mle[t,1])
+    ite_median_est[t,i+1] <- ite_median_est[t,i]+i^(-0.7)*(-median(Boot)+ite_median_est[t,1])
+    
+    
+  }
+  ana_median[t] <- median_est- (find_sol(median_est,n)-median_est)
+}
+
+
+
+
+plot(seq(1,iteration_times+1),colMedians(ite_median_est),xlab=expression(paste('iteration times', ~k)),ylab=TeX("$\\hat{\\theta}_k$"),main='Accelerated iE averaged by 10000 experiments. Exp(5). n=20')
+
+# points(seq(1,iteration_times+1),colMeans(V)+2*apply(V, 2, sd),type='l')
+# points(seq(1,iteration_times+1),colMeans(V)-2*apply(V, 2, sd),type='l')
+# points(seq(1,iteration_times+1),cummu_ite,type='l')
+abline(h=lambda,col='red')
+abline(h=median(ana_median),col='blue')
+legend('topright',legend=c('Analytical result','True value','iE'),col=c('blue','red','black'),lty=c(1,1,NA),pch=c(NA,NA,1))
+
+
+```
+
