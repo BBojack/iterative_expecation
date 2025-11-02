@@ -1,2 +1,2 @@
 # iterative_expecation
-Codes for thesis: iterative Expectation (iE) -A generalized bias reduction technique
+Codes for the Ph.D Thesis: iterative Expectation (iE) -A generalized bias reduction technique
