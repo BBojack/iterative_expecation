@@ -1,0 +1,99 @@
+---
+title: "4_6MEETING"
+author: "Tian Qin"
+date: '2022-04-06'
+output: html_document
+---
+
+
+
+
+```{r,cache=TRUE}
+
+set.seed(42)
+n_simulation <- 5000
+
+n<-30
+m <-100
+prob <- 0.1
+
+itet <- 100
+alpha <- 0.01
+z <- qnorm(1-alpha/2)
+#z <- qnorm(0.99)
+ite_l <- matrix(0,nrow=n_simulation,ncol=itet+1)
+b <- 0.5*z^2
+cover1=cover2=cover3=cover4=NULL
+t <- 1
+while(t <=n_simulation){
+  
+  binom_sample <- rbinom(n=n,size=1,prob=prob)
+  if(sum(binom_sample)>0){
+      MLE <- mean(binom_sample)
+  #MLE <- MLE*(n-1)/n #bias-reduced MLE
+  UPB <- MLE+z*sqrt(MLE* (1-MLE)/n   )
+  LB <- MLE -z*sqrt(MLE* (1-MLE)/n   )
+  cover1=c(cover1,( prob<=UPB  & prob>=LB  ))
+  ite_l[t,1] <- MLE
+
+  est_P <- c()
+
+
+  t1<-c()
+  t1[1] <- 0
+for(i in 1:itet){
+
+  boot_sp <-  replicate(m,(mean(rbinom(n=n,size=1,prob=MLE))))
+  upper_bounds <- boot_sp+(z+t1[i])*sqrt(boot_sp* (1-boot_sp)/n   )
+  lower_bounds <- boot_sp-(z+t1[i])*sqrt(boot_sp* (1-boot_sp)/n   )
+  est_P[i] <- sum(upper_bounds>=prob &lower_bounds<=prob) /m
+  # theta_star <- quantile(upper_bounds,0.05)
+  # t[i] <- theta_star-MLE
+
+    t1[i+1] <- t1[i] +0.1/i *(1-alpha-est_P[i])
+
+
+
+}
+
+  UPB_corrected <- MLE+(z+t1[itet+1])*sqrt(MLE* (1-MLE)/n   )#UPB+t1[itet+1]
+  LB_corrected <-  MLE-(z+t1[itet+1])*sqrt(MLE* (1-MLE)/n   )#UPB+t1[itet+1]
+  cover2=c(cover2,(prob<=UPB_corrected& prob>=LB_corrected)) # & prob>=LB_corrected
+  
+  ##wh
+  a_gamma <- sqrt(4*sqrt(1+z^2)-4-z^2)
+  Tb <- MLE+a_gamma*(0.5-MLE)/(sqrt(n)+a_gamma)
+  ub_tb <- Tb+(sqrt(1+n*z^2)+1)/(2*n)
+  lb_tb <- Tb-(sqrt(1+n*z^2)+1)/(2*n)
+  cover3=c(cover3,(prob<=ub_tb & prob>=lb_tb))#c(cover3,(lambda<=MLE+(z+c_hat)*MLE/sqrt(n)))
+# #   
+#   
+#    #boot3<- replicate(100,(1/mean(rgamma(n=n,rate=MLE,shape = 1))))
+#      transformed_UPB <- exp(log(MLE)+z/sqrt(n))
+#    #c_hat <-  (as.numeric(quantile(boot3,0.99))-MLE)*sqrt(n)/(MLE)-z
+#      cover3=c(cover3,(lambda<transformed_UPB))#c(cover3,(lambda<=MLE+(z+c_hat)*MLE/sqrt(n)))
+#      
+#   ##exact
+#      exact_ub <- qchisq(0.99,df=2*n)/(2*sum(gamma_sample))
+#      cover4=c(cover4,(lambda<exact_ub))#
+    t<- t+1
+  }
+
+}
+
+p1=mean(cover1)
+p2=mean(cover2)
+p3=mean(cover3)
+#p4=mean(cover4)
+me1=qnorm(0.995)*sqrt(p1*(1-p1)/n_simulation);me1=round(me1,3)
+me2=qnorm(0.995)*sqrt(p2*(1-p2)/n_simulation);me2=round(me2,3)
+me3=qnorm(0.995)*sqrt(p3*(1-p3)/n_simulation);me3=round(me3,3)
+#me4=qnorm(0.995)*sqrt(p4*(1-p4)/n_simulation);me4=round(me4,3)
+cat("Coverage of ordinary CI=",p1,"plus or minus",me1,"\n")
+cat("Coverage of iE adjusted CI=",p2,"plus or minus",me2,"\n")
+cat("Coverage of corrected CI=",p3,"plus or minus",me3,"\n")
+#cat("Coverage of exact CI=",p4,"plus or minus",me4,"\n")
+```
+
+
+
