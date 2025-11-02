@@ -1,0 +1,47 @@
+---
+title: "Chapter3_exponential_bootstrap_fig31"
+output: html_document
+date: "2025-11-02"
+---
+
+## Exponential bootstrap iE
+
+```{r}
+
+set.seed(42)
+require(latex2exp)
+lambda <- 2
+
+n <- 20
+sample_exp <- rexp(n,rate=lambda)
+mle <- 1/mean(sample_exp)
+ite_mle <- c()
+ite_mle[1] <- mle
+iteration_times <- 30
+bootstrap_times <- 100
+cummu_ite<- c()
+V <- c()
+V[1] <- ite_mle[1]
+for( i in 1:iteration_times){
+  Boot <- c()
+  for(j in 1:bootstrap_times){
+    exp_sample <- rexp(n,rate=ite_mle[i])
+    Boot[j] <- 1/mean(exp_sample)
+  }
+
+  
+  ite_mle[i+1] <- ite_mle[i]+(-mean(Boot)+ite_mle[1])
+  V[i+1] <-ite_mle[i+1]
+   cummu_ite[i] <-  mean(V)
+}
+
+
+
+plot(seq(1,iteration_times+1),ite_mle,xlab=expression(paste('iteration times', ~k)),ylab=TeX("$\\hat{\\theta}_k$"),mgp=c(2.5,1,0),main='Bootstrap times B is set to be 100')
+
+#abline(h=lambda,col='red')
+abline(h=(n-1)*mean(ite_mle[1])/n,col='blue')
+legend('topright',legend=c('bias-corrected MLE','true lambda =2','iE'),col=c('blue','red','black'),lty=c(1,1,NA),pch=c(NA,NA,1))
+
+
+```
