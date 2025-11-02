@@ -10,7 +10,7 @@ date: "2025-08-27"
 
 set.seed(217)
 require(latex2exp)
-n_trials <- 10000
+n_trials <- 1000
 lambda <- 0.1
 sample_size <- 20
 n_ite <- 10
@@ -59,7 +59,12 @@ for(j in 1:n_trials){
   #results_2[j,] <- iE(mle_bc^2,n_ite)
 }
 
-plot(colMeans(results_1),xlab='iterations k',ylab=TeX("$\\hat{\\theta}_k$"),ylim=c(colMeans(results_1)[1]-0.02,max(colMeans(results_1)+0.03)))
+plot(colMeans(results_1),xlab='iterations k',ylab=TeX("$\\hat{\\theta}_k$"),ylim=c(colMeans(results_1)[1]-0.02,max(colMeans(results_1)+0.03)),
+     main='Accelerated iE averaged by 1000 experiments')
 #points(colMeans(sqrt(results_2[1:33,])),xlab='iterations k',ylab='\theta_{k}',col='blue')
 abline(h=sqrt(lambda),col='red')
-legend('topright',legend=c('true value','iE'),col=c('red','black'),lty=c(1,1,NA),pch=c(NA,NA,1))```
+legend('topright',legend=c('true value','iE'),col=c('red','black'),lty=c(1,1,NA),pch=c(NA,NA,1))
+
+```
+
+
