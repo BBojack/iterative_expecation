@@ -1,0 +1,377 @@
+---
+title: "Betaregression"
+author: "Tian Qin"
+date: "3/4/2021"
+output: html_document
+---
+
+```{r}
+
+library (betareg)
+data("GasolineYield", package = "betareg")  # initialize data
+inputData <- GasolineYield  # plug-in your data here
+
+betaMod <- betareg(yield ~ batch + temp, data = inputData) # train model. Tune var names.
+summary (betaMod) # model summary
+
+coefficients(betaMod)
+pesudo_true_para <- as.numeric(coefficients(betaMod))
+```
+
+
+
+```{r}
+
+n_simulation <- 2000
+
+beta_est <- pesudo_true_para
+
+phi <- beta_est[12]
+
+mu_betareg <- vector(mode='numeric',length=0L)
+
+logit_inverse <- function(x){
+  
+  return(exp(x)/(1+exp(x)))
+}
+
+for(i in 1:length(inputData[,1])){
+  
+  if(as.numeric(inputData[i,]$batch)!=10){
+      mu_betareg[i] <-logit_inverse( beta_est[1]+beta_est[1+as.numeric(inputData[i,]$batch)]+beta_est[11]*inputData[i,]$temp)
+  }else{
+    mu_betareg[i] <-logit_inverse( beta_est[1]+beta_est[11]*inputData[i,]$temp)
+    
+  }
+  
+}
+
+a_true <- mu_betareg*phi
+b_true <- (1-mu_betareg)*phi
+
+
+
+
+
+```
+
+```{r}
+#sample gasline data
+sample_y_gas <- function(a,b){
+  
+  y_gas <- vector(mode='numeric',length=0L)
+  for(i in 1:length(a)){
+    
+    y_gas[i] <- rbeta(1,shape1=a[i],shape2 = b[i])
+  }
+  return(y_gas)
+
+}
+sample_y_gas(a_true,b_true)
+```
+
+
+
+```{r}
+#new_sampled_gasline <- inputData
+#new_sampled_gasline$yield <- sample_y_gas(a,b)
+set.seed(1234)
+betaMod <- betareg(sample_y_gas(a,b) ~ batch + temp, data = inputData) 
+
+sqrt(diag(betaMod$vcov))
+```
+
+
+```{r}
+#simulation part
+n_simulation <- 2000
+
+counter_matrix <- matrix(0,nrow=1,ncol=11)
+for(i in 1:n_simulation){
+  sample_gas <- sample_y_gas(a_true,b_true)
+  Sim_beta_reg <- betareg(sample_gas ~ batch + temp, data = inputData) 
+  
+  est_error <- sqrt(diag(Sim_beta_reg$vcov)) # simulate standard error
+  
+  sim_para <- as.numeric(coefficients(Sim_beta_reg))  #got simulated estimator
+  
+  for(j in 1:(length(sim_para)-1)){
+    if((sim_para[j]- 1.96*est_error[j] < pesudo_true_para[j]) && (sim_para[j]+1.96*est_error[j] > pesudo_true_para[j]) ){
+      
+      counter_matrix[1,j] <- counter_matrix[1,j] +1
+    }
+    
+  }
+  
+}
+counter_matrix/n_simulation
+
+```
+
+
+# Bias corrected part
+
+```{r}
+
+
+betaMod_bc <- betareg(yield ~ batch + temp, data = inputData,type = 'BR') # train model. Tune var names.
+#summary (betaMod) # model summary
+
+pesudo_true_para_bc <- coefficients(betaMod_bc)
+pesudo_true_para_bc
+```
+
+```{r}
+
+
+beta_est_bc <-pesudo_true_para_bc
+
+phi_bc <- beta_est_bc[12]
+
+mu_betareg_bc <- vector(mode='numeric',length=0L)
+
+logit_inverse <- function(x){
+  
+  return(exp(x)/(1+exp(x)))
+}
+
+for(i in 1:length(inputData[,1])){
+  
+  if(as.numeric(inputData[i,]$batch)!=10){
+      mu_betareg_bc[i] <-logit_inverse( beta_est_bc[1]+beta_est_bc[1+as.numeric(inputData[i,]$batch)]+beta_est_bc[11]*inputData[i,]$temp)
+  }else{
+    mu_betareg_bc[i] <-logit_inverse( beta_est_bc[1]+beta_est_bc[11]*inputData[i,]$temp)
+    
+  }
+  
+}
+
+a_true_bc <- mu_betareg_bc*phi_bc
+b_true_bc <- (1-mu_betareg_bc)*phi_bc
+
+
+```
+
+```{r}
+
+
+library (betareg)
+data("GasolineYield", package = "betareg")  # initialize data
+inputData <- GasolineYield  # plug-in your data here
+
+#sample gasline data
+sample_y_gas <- function(a,b){
+  
+  y_gas <- vector(mode='numeric',length=0L)
+  for(i in 1:length(a)){
+    
+    y_gas[i] <- rbeta(1,shape1=a[i],shape2 = b[i])
+  }
+  return(y_gas)
+
+}
+
+
+set.seed(1234)
+#simulation part
+n_simulation <- 2000
+
+sim_matrix <- matrix(0,ncol = 12,nrow = n_simulation)
+counter_matrix <- matrix(0,nrow=1,ncol=11)
+for(i in 1:n_simulation){
+  sample_gas <- sample_y_gas(a_true_bc,b_true_bc)
+  Sim_beta_reg <- betareg(sample_gas ~ batch + temp, data = inputData,type = 'BR') 
+  
+  est_error <- sqrt(diag(Sim_beta_reg$vcov)) # simulate standard error
+  
+  sim_para <- as.numeric(coefficients(Sim_beta_reg))  #got simulated estimator
+  sim_matrix[i,] <- sim_para  #store simulated results.
+  
+  for(j in 1:(length(sim_para)-1)){
+    if((sim_para[j]- 1.65*est_error[j] < pesudo_true_para_bc[j]) && (sim_para[j]+1.65*est_error[j] > pesudo_true_para_bc[j]) ){
+      
+      counter_matrix[1,j] <- counter_matrix[1,j] +1
+    }
+    
+  }
+  
+}
+counter_matrix/n_simulation
+sqrt(diag(cov(sim_matrix)))
+```
+
+# my method on Gasline yield data
+
+```{r}
+
+beta_simu_mle <- function(theta_k){
+  beta_est_bc <-theta_k
+
+  phi_bc <- beta_est_bc[12]
+  
+  mu_betareg_bc <- vector(mode='numeric',length=0L)
+  
+  logit_inverse <- function(x){
+    
+    return(exp(x)/(1+exp(x)))
+  }
+  
+  for(i in 1:length(inputData[,1])){
+    
+    if(as.numeric(inputData[i,]$batch)!=10){
+        mu_betareg_bc[i] <-logit_inverse( beta_est_bc[1]+beta_est_bc[1+as.numeric(inputData[i,]$batch)]+beta_est_bc[11]*inputData[i,]$temp)
+    }else{
+      mu_betareg_bc[i] <-logit_inverse( beta_est_bc[1]+beta_est_bc[11]*inputData[i,]$temp)
+      
+    }
+    
+  }
+  
+  a_true_bc <- mu_betareg_bc*phi_bc
+  b_true_bc <- (1-mu_betareg_bc)*phi_bc
+  return(cbind(a_true_bc,b_true_bc))
+  
+}
+
+#sample y_gas 
+sample_y_gas <- function(a,b){
+  
+  y_gas <- vector(mode='numeric',length=0L)
+  for(i in 1:length(a)){
+    
+    y_gas[i] <- rbeta(1,shape1=a[i],shape2 = b[i])
+  }
+  return(y_gas)
+
+}
+
+```
+
+```{r}
+
+library (betareg)
+data("GasolineYield", package = "betareg")  # initialize data
+inputData <- GasolineYield  # plug-in your data here
+
+betaMod <- betareg(yield ~ batch + temp, data = inputData) # train model. Tune var names.
+# summary (betaMod) # model summary
+# 
+# coefficients(betaMod)
+
+iteration_times <- 30
+bootstrap_times <- 50
+theta_1 <- as.numeric(coefficients(betaMod))
+
+theta_iterated <- matrix(0,nrow = length(theta_1),ncol = iteration_times+1)
+    
+theta_iterated[,1] <- theta_1
+
+
+    
+betap_iterated <- beta_simu_mle(theta_1)
+
+
+for (i in 1:iteration_times){
+  Bstrap_p <- matrix(0,nrow = length(theta_1),ncol = bootstrap_times) #storage
+  for (j in 1:bootstrap_times){#parametric bootstrap
+      sample_boot_beta <-sample_y_gas(betap_iterated[,1],betap_iterated[,2])
+        #sample(sample_gamma,sample_size,replace = T)
+      
+      model_temp <- betareg(sample_boot_beta ~ batch + temp, data = inputData)
+      Bstrap_p[,j] <- as.numeric(coefficients(model_temp))
+  }
+
+  theta_iterated[,(i+1)] <- theta_iterated[,i]-1/i *(rowMeans(Bstrap_p)-theta_iterated[,1])
+  betap_iterated <- beta_simu_mle(theta_iterated[,(i+1)])
+
+  
+}
+
+theta_iterated
+plot(theta_iterated[12,])
+```
+
+
+```{r}
+
+iE <- function(theta_1){
+  
+  
+  betap_iterated <- beta_simu_mle(theta_1)
+
+  sample_boot_beta <-sample_y_gas(betap_iterated[,1],betap_iterated[,2])
+    #sample(sample_gamma,sample_size,replace = T)
+  
+  model_init <- betareg(sample_boot_beta ~ batch + temp, data = inputData)  
+  theta_iterated <- matrix(0,nrow = length(theta_1),ncol = iteration_times+1)
+      
+  theta_iterated[,1] <- as.numeric(coefficients(model_init))
+for (i in 1:iteration_times){
+  Bstrap_p <- matrix(0,nrow = length(theta_1),ncol = bootstrap_times) #storage
+  for (j in 1:bootstrap_times){#parametric bootstrap
+      sample_boot_beta <-sample_y_gas(betap_iterated[,1],betap_iterated[,2])
+        #sample(sample_gamma,sample_size,replace = T)
+      
+      model_temp <- betareg(sample_boot_beta ~ batch + temp, data = inputData)
+      Bstrap_p[,j] <- as.numeric(coefficients(model_temp))
+
+  }
+
+  theta_iterated[,(i+1)] <- theta_iterated[,i]-1/i *(rowMeans(Bstrap_p)-theta_iterated[,1])
+  betap_iterated <- beta_simu_mle(theta_iterated[,(i+1)])
+
+
+}
+  #return(list(coef=theta_iterated[,iteration_times+1],est_std=as.numeric(apply(Bstrap_p,1, sd))))  
+  return(theta_iterated[,iteration_times+1])
+  
+}
+#iE(t)
+
+iE_times <- 100
+iE_matrix <- matrix(0,ncol = 12,nrow = iE_times)
+for(k in 1:iE_times){
+    iE_results <- iE(t)
+    iE_matrix[k,] <- iE_results
+}
+est_error <- apply(iE_matrix[1:85,],2,sd)
+est_error
+```
+```{r}
+
+set.seed(1234)
+#simulation part
+n_simulation <-10
+
+sim_matrix <- matrix(0,ncol = 12,nrow = n_simulation)
+counter_matrix <- matrix(0,nrow=1,ncol=11)
+
+t <- theta_iterated[,31]#rowMeans(theta_iterated[,5:30])
+iE_times <- 20
+iE_matrix <- matrix(0,ncol = 12,nrow = iE_times)
+
+for(i in 1:n_simulation){
+  for(k in 1:iE_times){
+    iE_results <- iE(t)
+    iE_matrix[k,] <- iE_results
+  }
+
+  #iE_results <- iE(t)
+  sim_para <- apply(iE_matrix,2,mean)#$coef# #got simulated estimator
+  est_error <- apply(iE_matrix,2,sd)#$est_std # simulate standard error
+  sim_matrix[i,] <- sim_para  #store simulated results.
+  
+  for(j in 1:(length(sim_para)-1)){
+    if((sim_para[j]- 1.65*est_error[j] < t[j]) && (sim_para[j]+1.65*est_error[j] > t[j]) ){
+      
+      counter_matrix[1,j] <- counter_matrix[1,j] +1
+    }
+    
+  }
+  
+}
+counter_matrix/n_simulation
+sqrt(diag(cov(sim_matrix)))
+
+
+```
