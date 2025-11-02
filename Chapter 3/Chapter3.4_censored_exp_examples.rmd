@@ -1,0 +1,239 @@
+---
+title: "Chap3.4"
+output: html_document
+date: "2025-10-06"
+---
+
+**Codes for iE method function (accelerated)**
+
+```{r}
+
+ iE_cexp <- function(mle,x,max_ite=50,B=50,c){   
+  sample_size <- length(x)
+  record <- vector(mode='numeric',length=0L)
+  record[1] <- mle
+  for(i in 1:max_ite){
+  j <- 1
+  Boot <- c()
+  while(j <=B){
+    sample_exp <- rexp(n=sample_size,rate=1/record[i])
+    
+    r <- length(which(sample_exp<c))
+    if(r>0){
+         Boot[j] <- sample_size*c /r
+         j <- j +1
+    }
+ 
+  }
+  record[i+1] <-record[i]-i^(-0.7)*(mean(Boot)-mle)
+
+  
+    
+  }
+  return(record[max_ite])
+}
+
+
+#contractive_iteration_cexp(mle_mu,exp_sampled,c=1)
+
+
+
+```
+
+
+
+**Codes for Firth's method function**
+
+```{r}
+
+ Firth_method_cexp <- function(mle,x,tolerance=0.000001,max_ite=50,c){   
+  
+  sample_size <- length(x)
+  r  <-length(which(x<c))
+  record <- vector(mode='numeric',length=0L)
+  record[1] <- mle
+  diff <- 1
+  i<-1
+  while(diff >tolerance && i <=max_ite && r>0 &&record[i]/record[1] <2 && record[i]>0){
+    new_candidate <- record[i]+score_censored_exp(r=r,mu=record[i],c=c,n=sample_size)/obserbed_ce(r=r ,mu=record[i],c=c,n=sample_size)-bias_censored_exp(c=c,n=sample_size,mu_k=record[i])   #update equation
+    record[i+1] <- new_candidate
+    diff <- abs(record[i+1]-record[i])
+    i <-i+1
+  }
+  if(diff >tolerance ){
+    return(record[1])
+
+  }else{
+    return(record[i])
+   }
+}
+
+```
+
+**Codes for One-step method function**
+
+In this case, the cox method becomes a naive bias reduction equation since there is an explicit form of the bias in exponential case.
+
+```{r}
+#Contractive iteration
+
+Cox_cexp <- function(mle,x,c){
+  
+  n <- length(x)
+  
+  return(mle-bias_censored_exp(c=c,n=n,mu_k=mle))
+
+  
+}
+
+  
+```
+
+
+**Codes for Bootstrap method function**
+
+The bootstrap method is based on the equation:$\tilde{\theta}- \hat{\theta} \approx \hat{\theta}-\bar{\theta}_{boot}$ and then the bias-corrected MLE $\tilde{\theta}$could be achieved by : $\tilde{\theta}=2 \hat{\theta}-\bar{\theta}_{boot}$, where $\bar{\theta}_{boot}$ is the mean of all bootstrapped MLE under the $\hat{\theta}$.
+
+```{r}
+#Bootstrap method
+
+Boot_cexp <- function(mle,x,bootstrap_t =50,c){
+  
+  n <- length(x)
+  Boot <- vector(mode='numeric',length=0L)
+  j <- 1
+  while( j < (bootstrap_t+1)){ # Bootstrap procedure
+      
+      boot_exp <- rexp(n,rate=1/mle)
+      if(length(which(boot_exp<c))>0  ){  #avoid infinite MLE
+        Boot[j] <- c*n/ length(which(boot_exp<c))
+         j <- j+1
+      }
+  }
+  theta_bootstrap <- 2*mle-mean(Boot)
+  return(theta_bootstrap)   #Bootstrap updating equation
+}
+
+  
+```
+
+
+**Codes for Jackknife method function**
+
+
+
+```{r}
+#Bootstrap method
+
+Jackknife_cexp <- function(mle,x,c){
+  n <- length(x)
+  Jack_mle_leave_one_out <- vector(mode='numeric',length=0L)
+  for( i in 1:n){ # Bootstrap procedure
+      
+      Jackknife_sample <- x[-i]
+      Jack_mle_leave_one_out[i] <- c*n/ length(which(Jackknife_sample<c))
+  }
+  
+  theta_tilde <- n*mle-(n-1)*mean(Jack_mle_leave_one_out)
+  return(theta_tilde)   #Jackknife equation
+}
+
+  
+```
+
+
+**practical method**
+
+```{r}
+#Bootstrap method
+
+Boot_cexp_P <- function(mle,x,bootstrap_t =200,ite=30,c){
+  n <- length(x)
+  Boot <- vector(mode='numeric',length=0L)
+  j <- 1
+  theta <- vector(mode='numeric',length=0L)
+  theta[1] <- mle
+  for( i in 1:ite){
+      while( j < (bootstrap_t+1)){ # Bootstrap procedure
+      boot_exp <- rexp(n,rate=1/theta[i])
+      if(length(which(boot_exp<c))>0  ){
+        Boot[j] <- c*n/ length(which(boot_exp<c))
+         j <- j+1
+      }
+      }
+       theta[i+1]<- theta[1]  - (mean(Boot)-theta[i])
+  }
+  return(theta)   #Bootstrap updating equation
+}
+  
+```
+
+
+Now, we run those methods by 10000 times and compare the mean and the mean squared error of bias-corrected mle of each method. 
+
+```{r,cache=TRUE}
+
+set.seed(1234)
+n <- 20
+
+mu <- 2
+c <-1
+
+bias_censored_exp <- function(c,n,mu_k){
+  p <- 1-exp(-c/mu_k)
+  return( n*c/((n+1)*p) * (1-(1-p)^(n+1)-(n+1)*p*(1-p)^n)  -mu_k )
+}
+
+score_censored_exp <- function (r,mu,c,n){
+  return(-r/mu+n*c/mu^2)
+}
+
+obserbed_ce <- function(r,mu,c,n){
+  return(-r/mu^2+2*n*c/mu^3)
+}
+
+n_trials <- 10000
+
+
+MLE <- vector(mode='numeric',length=0L)
+BC_iE <- vector(mode='numeric',length=0L)
+BC_Firth <- vector(mode='numeric',length=0L)
+BC_Cox <- vector(mode='numeric',length=0L)
+BC_bootstrap <- vector(mode='numeric',length=0L)
+BC_jackknife <- vector(mode='numeric',length=0L)
+
+t<-1
+while( t <n_trials){
+  sample_exp <- rexp(n=n,rate=1/mu)
+  
+  r <- length(which(sample_exp<c))
+  if( r>0){
+    
+      mle <- n*c /r
+      MLE[t] <- mle
+      BC_iE[t] <- iE_cexp(mle,x=sample_exp,B=50,c=c)
+      BC_Firth[t] <- Firth_method_cexp(mle,x=sample_exp,c=c)
+      BC_Cox[t] <- Cox_cexp(mle,x=sample_exp,c=c)
+      BC_bootstrap[t] <- Boot_cexp(mle,x=sample_exp,bootstrap_t = 50,c=c)
+      BC_jackknife[t] <- Jackknife_cexp(mle,x=sample_exp,c=c)
+    
+      t <- t+1
+    
+  }
+
+  
+}
+
+
+result_cexp <- matrix(0,nrow = 2,ncol = 6)
+colnames(result_cexp) <- c('MLE','iE iteration','Firth method','First order method','Bootstrap','Jackknife')
+rownames(result_cexp) <- c('mean','MSE')
+
+result_cexp[1,] <- c(mean(MLE),mean(BC_iE),mean(BC_Firth),mean(BC_Cox),mean(BC_bootstrap),mean(BC_jackknife))
+result_cexp[2,] <- c(mean((MLE-mu)^2),mean((BC_iE-mu)^2),mean((BC_Firth-mu)^2),mean((BC_Cox-mu)^2),mean((BC_bootstrap-mu)^2),mean((BC_jackknife-mu)^2))
+
+knitr::kable(
+  result_cexp, booktabs = TRUE,
+  caption = 'Comparison with diferent bias reduction methods.Censored Expeonential distribution with mu=2'
+)
+```
