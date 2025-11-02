@@ -1,0 +1,312 @@
+---
+title: "Chap3.4"
+output: html_document
+date: "2025-10-06"
+---
+
+**Codes for iE method function (accelerated)**
+
+```{r}
+
+
+ iE_beta <- function(mle_alpha,mle_beta,x,max_ite=50,B=50){   
+  sample_size <- length(x)
+  records <- matrix(NA,nrow=max_ite+1,ncol = 2)
+  records[1,1] <- mle_alpha
+  records[1,2] <- mle_beta
+  for(i in 1:max_ite){
+  j <- 1
+  Boot <-  matrix(NA,nrow=B,ncol = 2)
+  while(j <=B){
+    sample_beta <-rbeta(sample_size,shape1= records[i,1],shape2 =records[i,2])
+    MOM_a_beta <- mean(sample_beta)* (mean(sample_beta)*(1-mean(sample_beta))/var(sample_beta)-1)#shape1
+    MOM_b_beta <- MOM_a_beta*(1-mean(sample_beta))/mean(sample_beta) #shape2
+    model <-  optim(par = c(MOM_a_beta,MOM_b_beta),target_beta, x=sample_beta, hessian=TRUE)
+    if( model$convergence ==0){
+    Boot[j,] <- model$par
+    j <- j +1
+    }        
+  }          
+    records[(i+1),] <- records[i,] + i^{-0.7}* (records[1,]-colMeans(Boot))
+
+}
+  
+    
+  return(records[max_ite,])
+}
+
+
+#contractive_iteration_cexp(mle_mu,exp_sampled,c=1)
+
+#iE_sgamma(mle_gamma_update[1],mle_gamma_update[2],sample_gamma,max_ite=50,B=50)
+
+```
+
+**Codes for analytical iE method function (explicit bias)**
+
+```{r}
+
+pdf <- quote(gamma(shape1+shape2)/(gamma(shape1)*gamma(shape2))*x^(shape1-1)*(1-x)^(shape2-1))
+lpdf <- quote(lgamma(shape1+shape2)-lgamma(shape1)-lgamma(shape2)+(shape1-1)*log(x)+(shape2-1)*log(1-x))
+
+
+ iE_beta_analytical <- function(mle,x,tolerance=0.000001,max_ite=50){
+  sample_size <- length(x)
+  record <- matrix(0,nrow =max_ite+1,ncol = 2)
+  record[1,] <- mle
+  diff <- 1
+  i<-1
+  while(diff >tolerance && i <=max_ite){
+    new_candidate <- record[1,]-coxsnell.bc(density = pdf, logdensity = lpdf, n = sample_size,
+        parms = c("shape1", "shape2"), mle = 
+  record[i,],
+        lower = 0,upper=1)$bias #update equation
+    record[i+1,] <- new_candidate
+    diff <- abs(record[i+1,][1]-record[i,][1])
+    i <-i+1
+  }
+
+  if(diff >tolerance ){ #divergence
+    return(record[1,])
+
+  }else{
+    return(record[i,])
+   }
+}
+
+
+#contractive_iteration_cexp(mle_mu,exp_sampled,c=1)
+
+
+
+```
+
+**Codes for Firth's method function**
+
+```{r}
+
+Firth_method_beta2 <- function(mle,x,tolerance=0.000001,max_ite=50){   
+  sample_beta <- x
+  record <- matrix(0,nrow =max_ite+1,ncol = 2)
+  record[1,] <- mle
+  #bias <- vector(mode='numeric',length=0)
+  diff <- 1
+  #i<-1
+  for( i in 1:max_ite){
+    
+  temp <- record[i,]+solve(obs_informa_b(
+  record[i,],sample_beta))%*% matrix(score_beta(
+  record[i,],sample_beta))
+    
+    new_candidate <- temp-coxsnell.bc(density = pdf, logdensity = lpdf, n = sample_size,
+        parms = c("shape1", "shape2"), mle = 
+  record[i,],
+        lower = 0,upper=1)$bias  #update equation
+    record[(i+1),] <-new_candidate #cbind(record,new_candidate)
+    #diff <- abs(record[(i+1),][1]-record[i,][1])
+    #i <-i+1
+  }
+  return(record[max_ite,])
+}
+
+```
+
+**Codes for One-step method function**
+
+In this case, the cox method becomes a naive bias reduction equation since there is an explicit form of the bias in exponential case.
+
+```{r}
+#Contractive iteration
+pdf <- quote(gamma(shape1+shape2)/(gamma(shape1)*gamma(shape2))*x^(shape1-1)*(1-x)^(shape2-1))
+lpdf <- quote(lgamma(shape1+shape2)-lgamma(shape1)-lgamma(shape2)+(shape1-1)*log(x)+(shape2-1)*log(1-x))
+
+
+Cox_beta <- function(mle,x){
+  
+  n <- length(x)
+  
+  return(mle-coxsnell.bc(density = pdf, logdensity = lpdf, n = n,
+          parms =  c("shape1", "shape2"), mle =
+          mle,
+                lower = 0,upper=1)$bias)
+
+  
+}
+
+  
+```
+
+
+**Codes for Bootstrap method function**
+
+The bootstrap method is based on the equation:$\tilde{\theta}- \hat{\theta} \approx \hat{\theta}-\bar{\theta}_{boot}$ and then the bias-corrected MLE $\tilde{\theta}$could be achieved by : $\tilde{\theta}=2 \hat{\theta}-\bar{\theta}_{boot}$, where $\bar{\theta}_{boot}$ is the mean of all bootstrapped MLE under the $\hat{\theta}$.
+
+```{r}
+#Bootstrap method
+
+Boot_beta <- function(mle,x,bootstrap_t =50){
+  
+  n <- length(x)
+  Boot <-  matrix(0,nrow =bootstrap_t,ncol = 2)
+  j <- 1
+  while( j < (bootstrap_t+1)){ # Bootstrap procedure
+      
+    sample_beta <-rbeta(sample_size,shape1= mle[1],shape2 =mle[2])
+    MOM_a_beta <- mean(sample_beta)* (mean(sample_beta)*(1-mean(sample_beta))/var(sample_beta)-1)#shape1
+    MOM_b_beta <- MOM_a_beta*(1-mean(sample_beta))/mean(sample_beta) #shape2
+    model <-  optim(par = c(MOM_a_beta,MOM_b_beta),target_beta, x=sample_beta, hessian=TRUE)
+    if ( model$convergence ==0){
+    Boot[j,] <- model$par
+    j<- j+1
+    }
+  }
+  theta_bootstrap <- 2*mle-colMeans(Boot)
+  return(theta_bootstrap)   #Bootstrap updating equation
+}
+
+  
+```
+
+
+**Codes for Jackknife method function**
+
+
+
+```{r}
+#Bootstrap method
+
+Jackknife_beta <- function(mle,x){
+  n <- length(x)
+  Jack_mle_leave_one_out <-matrix(0,nrow =n,ncol = 2)
+  for( i in 1:n){ # Bootstrap procedure
+      
+      Jackknife_sample <- x[-i]
+      
+      MOM_a_beta <- mean(Jackknife_sample)* (mean(Jackknife_sample)*(1-mean(Jackknife_sample))/var(Jackknife_sample)-1)#shape1
+      MOM_b_beta <- MOM_a_beta*(1-mean(Jackknife_sample))/mean(Jackknife_sample) #shape2
+      model <-  optim(par = c(MOM_a_beta,MOM_b_beta),target_beta, x=sample_beta, hessian=TRUE)
+
+      Jack_mle_leave_one_out[i,] <- model$par
+
+  }
+  
+  theta_tilde <- n*mle-(n-1)*colMeans(Jack_mle_leave_one_out)
+  return(theta_tilde)   #Jackknife equation
+}
+
+  
+```
+
+
+
+
+
+Now, we run those methods by 10000 times and compare the mean and the mean squared error of bias-corrected mle of each method. 
+
+```{r,cache=TRUE}
+
+set.seed(1234)
+
+library(mle.tools)
+true_shape1_beta<-10  #true value
+true_shape2_beta <- 20
+sample_size <-20
+tolerance <- 0.00001
+
+n_trials <- 1000
+bc_beta_anaiE <- matrix(0,nrow=n_trials,ncol = 2)
+bc_beta_Jacknife<- matrix(0,nrow=n_trials,ncol = 2)
+bc_beta_Boot<- matrix(0,nrow=n_trials,ncol = 2)
+bc_beta_Cox<- matrix(0,nrow=n_trials,ncol = 2)
+bc_beta_iE<- matrix(0,nrow=n_trials,ncol = 2)
+bc_beta_firth <- matrix(0,nrow=n_trials,ncol = 2)
+mle_beta <- matrix(0,nrow=n_trials,ncol = 2)
+# negative likelihood function for gamma dist
+target_beta=function(mle,x){-sum(dbeta(x,mle[1],mle[2],log=TRUE))}
+
+#Formula deduced from Cox-Snell
+pdf <- quote(gamma(shape1+shape2)/(gamma(shape1)*gamma(shape2))*x^(shape1-1)*(1-x)^(shape2-1))
+lpdf <- quote(lgamma(shape1+shape2)-lgamma(shape1)-lgamma(shape2)+(shape1-1)*log(x)+(shape2-1)*log(1-x))
+
+
+#score function of beta
+score_beta <- function(theta,sample_beta){
+  n<-length(sample_beta)
+  sumlog <- sum(log(sample_beta))
+  x <- sample_beta
+  a<-theta[1]
+  b <-theta[2]
+  score_a <-n*digamma(a+b) -n*digamma(a)+sumlog
+  score_b <- n*digamma(a+b) -n*digamma(b)+sum(log(1-x))
+  return(c(score_a,score_b))
+}
+
+#observed information matrix
+obs_informa_b <- function(theta,sample_beta){
+  n<-length(sample_beta)
+  a <- theta[1]
+  b <-theta[2]
+  x <- sample_beta
+  I_11 <- n*(trigamma(a+b)-trigamma(a))
+  I_12 <- n*trigamma(a+b)
+  I_21 <- n*trigamma(a+b)
+  I_22 <- n*(trigamma(a+b)-trigamma(b))
+  obs_I <- -matrix(c(I_11,I_12,I_21,I_22),ncol = 2)
+  return( obs_I)
+  
+}
+t <-1
+while(t <= n_trials){
+
+  sample_beta <-rbeta(sample_size,shape1= true_shape1_beta,shape2 =true_shape2_beta)
+  MOM_a_beta <- mean(sample_beta)* (mean(sample_beta)*(1-mean(sample_beta))/var(sample_beta)-1)#shape1
+  MOM_b_beta <- MOM_a_beta*(1-mean(sample_beta))/mean(sample_beta) #shape2
+  check <-  optim(par = c(MOM_a_beta,MOM_b_beta),target_beta, x=sample_beta, hessian=TRUE)
+  #mle_gamma_update<-check$par
+  mle_beta_update<-check$par
+  mle_beta[t,] <- mle_beta_update
+  if ( check$convergence ==0){
+#
+    try(
+
+      {
+      bc_beta_anaiE[t,] <- iE_beta_analytical(mle_beta_update,sample_beta,max_ite=20)
+      bc_beta_iE[t,] <- iE_beta(mle_beta_update[1],mle_beta_update[2],sample_beta,max_ite=20,B=50)
+      bc_beta_firth[t,] <-  Firth_method_beta2(mle_beta_update,sample_beta,tolerance = tolerance)
+      bc_beta_Cox[t,] <- Cox_beta(mle_beta_update,x=sample_beta)
+      bc_beta_Boot[t,] <- Boot_beta(mle_beta_update,x=sample_beta,bootstrap_t = 50)
+      bc_beta_Jacknife[t,] <- Jackknife_beta(mle_beta_update,x=sample_beta)
+      t <- t+1
+      },silent = TRUE
+      )
+}
+
+}
+
+
+result_gamma_alpha <- matrix(0,nrow = 2,ncol =7)
+colnames(result_gamma_alpha) <- c('MLE_alpha','iE alpha','Firth alpha','Cox alpha','Boot alpha','Jack alpha','Analytical iE alpha')
+rownames(result_gamma_alpha) <- c('mean','MSE')
+
+result_gamma_alpha[1,] <- c(mean(mle_beta[,1]),mean(bc_beta_iE[,1]),mean(bc_beta_firth[,1]),mean(bc_beta_Cox[,1]),mean(bc_beta_Boot[,1]),mean(bc_beta_Jacknife[,1]),mean(bc_beta_anaiE[,1]))
+result_gamma_alpha[2,] <- c(mean((mle_beta[,1]-true_shape1_beta)^2),mean((bc_beta_iE[,1]-true_shape1_beta)^2),mean((bc_beta_firth[,1]-true_shape1_beta)^2),mean((bc_beta_Cox[,1]-true_shape1_beta)^2),mean((bc_beta_Boot[,1]-true_shape1_beta)^2),mean((bc_beta_Jacknife[,1]-true_shape1_beta)^2),mean((bc_beta_anaiE[,1]-true_shape1_beta)^2))
+
+knitr::kable(
+  result_gamma_alpha, booktabs = TRUE,
+  caption = 'Comparison with Firth method in two parameters case.Beta distribution with alpha=10,beta=20'
+)
+
+
+
+result_gamma_beta <- matrix(0,nrow = 2,ncol = 7)
+colnames(result_gamma_beta) <- c('MLE_alpha','iE alpha','Firth alpha','Cox alpha','Boot alpha','Jack alpha','Analytical iE alpha')
+rownames(result_gamma_beta) <- c('mean','MSE')
+
+result_gamma_beta[1,] <- c(mean(mle_beta[,2]),mean(bc_beta_iE[,2]),mean(bc_beta_firth[,2]),mean(bc_beta_Cox[,2]),mean(bc_beta_Boot[,2]),mean(bc_beta_Jacknife[,2]),mean(bc_beta_anaiE[,2]))
+result_gamma_beta[2,] <- c(mean((mle_beta[,2]-true_shape2_beta)^2),mean((bc_beta_iE[,2]-true_shape2_beta)^2),mean((bc_beta_firth[,2]-true_shape2_beta)^2),mean((bc_beta_Cox[,2]-true_shape2_beta)^2),mean((bc_beta_Boot[,2]-true_shape2_beta)^2),mean((bc_beta_Jacknife[,2]-true_shape2_beta)^2),mean((bc_beta_anaiE[,2]-true_shape2_beta)^2))
+
+knitr::kable(
+  result_gamma_beta, booktabs = TRUE,
+  caption = 'Comparison with Firth method in two parameters case.Beta distribution with alpha=10,beta=20'
+)
+```
