@@ -1,0 +1,65 @@
+---
+title: "iE_nonlinear_pos"
+output: html_document
+date: "2025-08-27"
+---
+
+### iE in reducing the bias of function of estimators
+
+```{r}
+
+set.seed(217)
+require(latex2exp)
+n_trials <- 10000
+lambda <- 0.1
+sample_size <- 20
+n_ite <- 10
+results_1 <- matrix(NA,nrow=n_trials,ncol=n_ite+1)
+results_2 <- matrix(NA,nrow=n_trials,ncol=n_ite+1)
+B <- 100
+est_f <- function(B,lambda){
+  rep_est <- replicate(B, sqrt(mean(rpois(n=sample_size,lambda=lambda))))
+  return( mean(rep_est))
+  
+}
+# est_2 <- function(B,lambda){
+#   rep_est <- replicate(B, (iE_g(mean(rpois(n=sample_size,lambda=lambda)),n_ite)[n_ite+1])^2)
+#   return( mean(rep_est))
+#   
+# }
+# iE <- function(initial,n_ite){
+#   x<- numeric(length=n_ite+1)
+#   x[1] <- initial #initialization
+#   for(i in 1:n_ite){
+#     
+#     x[i+1] <- x[i]+1*i^(-0.7) * (initial-est_2(B,x[i]))
+#     
+#     
+#   }
+#   return(x)
+# }
+iE_g <- function(mle,n_ite){
+  x<- numeric(length=n_ite+1)
+  x[1] <- mle #initialization
+  for(i in 1:n_ite){
+    
+    x[i+1] <- (sqrt(x[i])+1*i^(-0.7) * (sqrt(mle)-est_f(B,x[i])))^2
+    
+    
+  }
+  return(sqrt(x))
+}
+
+### final experiments
+for(j in 1:n_trials){
+  poi_samples <- rpois(n=sample_size,lambda=lambda)
+  mle <- mean(poi_samples)
+  #mle_bc <- iE_g(mle,n_ite)[n_ite+1]
+  results_1[j,] <- iE_g(mle,n_ite)
+  #results_2[j,] <- iE(mle_bc^2,n_ite)
+}
+
+plot(colMeans(results_1),xlab='iterations k',ylab=TeX("$\\hat{\\theta}_k$"),ylim=c(colMeans(results_1)[1]-0.02,max(colMeans(results_1)+0.03)))
+#points(colMeans(sqrt(results_2[1:33,])),xlab='iterations k',ylab='\theta_{k}',col='blue')
+abline(h=sqrt(lambda),col='red')
+legend('topright',legend=c('true value','iE'),col=c('red','black'),lty=c(1,1,NA),pch=c(NA,NA,1))```
