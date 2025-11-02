@@ -1,0 +1,556 @@
+---
+title: "Week9_report1021"
+author: "Tian Qin"
+date: "10/21/2021"
+output: html_document
+---
+
+Goal:
+
+Let $M(x)$ be a given vector of functions and $\alpha$ a fixed vector such that the vector equation 
+
+$$
+M(x)=\alpha
+$$
+
+has a unique root at $x=\theta$.  Note that they are all vectors now.
+
+
+I am trying to mimic the proof of the convergence theorem in Robbins and Monro's paper by replacing $a_n$ with a matrix $A_n$. So the equation becomes: $x_{n+1}-x_{n}=A_{n}(\alpha-y_{n})$. $x_{n+1},x_{n},\alpha,y_{n}$ are all vectors. For simplicity, we can assume the dimension is 2.  The bias reduction  MLEs in Gamma distribution would be a perfect example and in this case  $y_{n}=(y_{n1},y_{n2})$ is a random vector consisting of MLEs such that 
+$$
+P(y_{n1}<x,y_{n2}<y|x_{n})=H(x,y|x_{n})
+$$
+
+
+Let
+
+$$
+b_{n}=E||x_{n}-\theta||_{2}^{2}
+$$
+
+where $||.||_{2}$ is L2 norm.
+
+Now let's try to find conditions under which
+
+$$
+\lim_{n \to \infty} b_{n}=0
+$$
+
+
+and it follows that $x_{n}$ converges to $\theta$ in probability.
+
+
+With the property of conditional expectation, we have
+
+$$
+\begin{align}
+b_{n+1}&=E||x_{n+1}-\theta||_{2}^{2}=E[E(||x_{n+1}-\theta||_{2}^{2}|x_{n}]\\
+&=E[\int_{-\infty}^{\infty}\int_{-\infty}^{\infty}\{(x_{n+1}-\theta)^{T}(x_{n+1}-\theta)\}dH(x,y|x_{n})]\\
+&=E[\int_{-\infty}^{\infty}\int_{-\infty}^{\infty}\{(x_{n}-\theta-A_{n}(y_{n}-\alpha))^{T}(x_{n}-\theta-A_{n}(y_{n}-\alpha))\}dH(y_{n}|x_{n})]\\
+&=E[\int_{-\infty}^{\infty}\int_{-\infty}^{\infty}\{(x_{n}-\theta)^{T}(x_{n}-\theta)-2(x_{n}-\theta)^{T}A_{n}(y_{n}-\alpha)+(A_{n}(y_{n}-\alpha))^{T}A_{n}(y_{n}-\alpha)\}dH(y_{n}|x_{n})]\\
+&=b_{n}-2E[(x_{n}-\theta)^{T}A_{n}(M(x_{n})-\alpha)]+E[\int_{-\infty}^{\infty}\int_{-\infty}^{\infty}(y_{n}-\alpha)^{T}A_{n}^{T}A_{n}(y_{n}-\alpha)dH(y_{n}|x_{n})]
+\end{align}
+$$
+
+When $A_{n}$ reduces to the scalar, the above equation becomes the one-dimensional case, which has been proved by Robbins and Moron. However, when $A_{n}$ is matrix, it's not obvious to take it out of the expectation operation which I think is the key point in finding the requirement of $A_{n}$ making $x_{n}$ convergent.
+
+One potential direction I came up with is to do the spectral expansion of symmetric matrix.(Assume $A_{n}$ is symmetric) In this way, we can rewrite $A_{n}$ as 
+
+$$
+A_{n}=\sum_{i=1}^{m}\lambda_{i}q_{i}q_{i}^{T}
+$$
+
+where $\lambda_{i}$ are eigenvalues of $A_{n}$ and $q_{i}$ are corresponding eigenvectors. Such representation help us get rid of matrix and we can take all eigenvalues out of the expectation, which becomes a similar form with the one-dimensional case.
+
+But this has nothing to do with the geometric sum of matrices. Moreover, we have seen that it is still possible that sequence $x_{n}$ converges to $\theta$ when $A_{n}$ is upper-triangular or lower-triangular. So the assumption that $A_{n}$ is symmetric may not be general enough.
+
+Is it really beneficial to use matrix rather than the scalar in the multivariate case? Because we have seen that the accelerated iE performs good enough when the scalar is used in iteration equation. 
+
+# 1.Rate of convergence in one-dimensional accelerated iE
+
+Recall that in one-dimension accelerated iE, the iteration equation is
+
+$$
+x_{n+1}-x_{n}=a_{n}(\alpha-y_{n})
+$$
+
+where $a_{n}$ satisfies: (1) $\sum_{n=1}^{\infty}a_{n}=\infty$, (2) $\sum_{n=1}^{\infty}a_{n}^2 <\infty$
+
+* Few more assumptions:
+  + $M'(\theta)$ =P> 0 (from Robbins and Moron work)
+  + There is a unique root is at $x=\theta$.
+  + M(x) is differentiable and convex on an appropriate domain.
+
+
+Then we have:
+
+$$
+\begin{align}
+b_{n+1}&=E(x_{n+1}-\theta)^{2}=E[E((x_{n+1}-\theta)^{2}|x_{n}]\\
+&=E[\int_{-\infty}^{\infty}\{(x_{n}-\theta)-a_{n}(y-\alpha)\}^{2}dH(x,y|x_{n})]\\
+&=b_{n}+a_{n}^2E[\int_{-\infty}^{\infty}(y-\alpha)^{2}dH(x,y|x_{n})]-2a_{n}E[(x_{n}-\theta)(M(x_{n})-\alpha)]
+\end{align}
+$$
+
+Let 
+
+$$
+\begin{align}
+d_{n}&= E[(x_{n}-\theta)(M(x_{n})-\alpha)]\\
+e_n &= E[\int_{-\infty}^{\infty}(y-\alpha)^{2}dH(x,y|x_{n})]
+\end{align}
+$$
+
+According to Robbins and Moron(1951), we have $0 \leq e_{n} \leq h^{2} < \infty$, where $h=C+|\alpha|$ NS $p(|Y(x)|\leq C)=\int_{-c}^{c}dH(y|x)=1$
+
+ then the iteration equation becomes：
+
+$$
+\begin{align}
+b_{n+1}&=b_{n}-2a_{n}d_{n}+a_{n}^2e_{n}\\
+& \leq b_{n} -2 a_{n}d_{n}+a_{n}^{2}h^{2}
+\end{align}
+$$
+
+By the assumptions of M(x), we have
+
+$$
+\begin{align}
+M(x_{n})-M(\theta)&\geq M'(\theta)(x_{n}-\theta)\\
+(x_{n}-\theta)(M(x_{n})-\alpha) &\geq M'(\theta)(x_{n}-\theta)^2\\
+E[(x_{n}-\theta)(M(x_{n})-\alpha)]&\geq b_{n}M'(\theta)
+\end{align}
+$$
+
+let $a_{n}=\frac{1}{Pn^{\alpha}}$ where $\alpha \in (0.5,1]$ ,then 
+
+$$
+\begin{align}
+b_{n+1}& \leq b_{n} -2 n^{-\alpha}d_{n}+n^{-2\alpha}(h^{2}/ P^2)\\
+ &\leq b_n -2Pb_{n}\frac{1}{P}n^{-\alpha}+n^{-2\alpha}(h^{2}/ P^2)\\
+ &= (1-2n^{-\alpha})b_{n}+n^{-2\alpha}(h^{2}/ P^2)
+\end{align}
+$$
+
+
+Define $L=max\{b_1,h^2/P^2\}$, then we claim:  
+
+$$
+b_{n}=E(x_{n}-\theta)^{2} \leq \frac{L}{n^{\alpha}}
+$$
+
+which implies the convergence rate would be $O(n^{-\alpha})$.
+
+We prove by induction.
+
+When n=1, it's obviously true. Assume the inequality holds with n=k, we show the inequality is also true when n=k+1. From previous results, we have
+
+$$
+\begin{align}
+b_{k+1}=E(x_{k+1}-\theta)^{2}&\leq (1-2k^{-\alpha})b_{k}+k^{-2\alpha}(h^{2}/P^2)\\
+&\leq (1-2k^{-\alpha})\frac{L}{k^{\alpha}}+ \frac{L}{k^{2\alpha}}\\
+&= (\frac{1}{k^{\alpha}}-\frac{2}{k^{2\alpha}}+\frac{1}{k^{2\alpha}})L\\
+&=(\frac{k^{\alpha}-1}{k^{2\alpha}})L\\
+& \leq \frac{L}{k^{\alpha}+1}
+\end{align}
+$$
+
+
+Let $f(x)=(1+x)^{\alpha}-1-x^{\alpha}$, then
+
+$$
+\begin{align}
+f'(x)&=\alpha(1+x)^{\alpha-1}-\alpha x^{\alpha-1}\\
+&=\alpha[(1+x)^{\alpha-1}-x^{\alpha-1}]\\
+&=\alpha[\frac{1}{(1+x)^{1-\alpha}}-\frac{1}{x^{1-\alpha}}]\leq 0
+\end{align}
+$$
+
+since we require that $\alpha \in (0.5,1]$.
+
+It follows that $(1+k)^\alpha \leq 1+k^{\alpha}$.
+
+Eventually we obtain $b_{k+1}=E(x_{k+1}-\theta)^{2} \leq \frac{L}{(1+k)^{\alpha}}$. It completes the proof.  
+
+That is to say, the rate of convergence of accelerated iE depends on the sequence of weights $a_{n}$ we chose. In general, it's in the order of $O(n^{-\alpha})$. For the multivariate case, we need to be careful but the result in one-dimensional case gives us an initial sense of convergence rate of accelerated iE.
+
+# 2.Rate of convergence in multivariate accelerated iE
+
+### When $A_{n}=a_{n}$
+
+When the weights become scalar, the previous equation will be
+
+$$
+\begin{align}
+b_{n+1}&=b_{n}-2E[(x_{n}-\theta)^{T}A_{n}(M(x_{n})-\alpha)]+E[\int_{-\infty}^{\infty}\int_{-\infty}^{\infty}(y_{n}-\alpha)^{T}A_{n}^{T}A_{n}(y_{n}-\alpha)dH(y_{n}|x_{n})]\\
+&=b_{n}-2a_{n}E[(x_{n}-\theta)^{T}(M(x_{n})-\alpha)]+a_{n}^{2}E[||y-\alpha||^{2}|x_{n}]\\
+\end{align}
+$$
+
+
+* Again, we assume:
+
+
+  + Gradients of components of map M all exist (from Robbins and Moron work)
+  + There is a unique root is at $x=\theta$.
+  + M(x) is differentiable and convex on an appropriate domain. (In multivariate sense)
+  + $e_{n}=E[||y-\alpha||^{2}|x_{n}] \leq h^{2} \leq \infty$
+
+For simplicity, we consider a two-dimensional case.(For example, MLEs the gamma distribution) Then $x_{n} \in \mathbf{R}^{2},\theta \in \mathbf{R}^{2},\alpha \in \mathbf{R}^{2}$ and $M: \mathbf{R}^{2} \rightarrow \mathbf{R}^{2}$.
+
+Let $M(x_{n})=(M_{1}(x_{n}),M_{2}(x_{n}))^{T}$, where $M_{i}:\mathbf{R}^{2} \rightarrow \mathbf{R} $, by convexity, we have
+
+$$
+\begin{align}
+M_{1}(x_{n})-M_{1}(\theta) &\geq (\nabla M_{1}(\theta))^{T}(x_{n}-\theta)\\
+M_{2}(x_{n})-M_{2}(\theta) &\geq (\nabla M_{2}(\theta))^{T}(x_{n}-\theta)\\
+\end{align}
+$$
+It follows that 
+
+$$
+\begin{align}
+(x_{n1}-\theta_{1})(M_{1}(x_{n})-\alpha_1) &\geq (x_{n1}-\theta_{1})(\nabla M_{1}(\theta))^{T}(x_{n}-\theta)\\
+(x_{n2}-\theta_{2})(M_{2}(x_{n})-\alpha_2) &\geq (x_{n2}-\theta_{2})(\nabla M_{2}(\theta))^{T}(x_{n}-\theta)\\
+\end{align}
+$$
+and then
+
+$$
+\begin{align}
+E[(x_{n}-\theta)^{T}(M(x_{n})-\alpha)] &\geq  E[(x_{n}-\theta)^{T}\left(\begin{array}{cc} 
+(\nabla M_{1}(\theta))^{T} \\
+(\nabla M_{2}(\theta))^{T}
+\end{array}\right)(x_{n}-\theta)]\\
+&=E[(x_{n}-\theta)^{T}G(\theta)(x_{n}-\theta)]
+\end{align}
+$$
+
+where $G(\theta)=\left(\begin{array}{cc} 
+(\nabla M_{1}(\theta))^{T} \\
+(\nabla M_{2}(\theta))^{T}
+\end{array}\right)$.
+
+
+Note that $G(\theta)=\frac{G(\theta)+G(\theta)^{T}}{2}+\frac{G(\theta)-G(\theta)^{T}}{2}$. We call $\frac{G(\theta)+G(\theta)^{T}}{2}=G_{s}$ the symmetric part of matrix G and $\frac{G(\theta)-G(\theta)^{T}}{2}=G_{a}$ the anti-symmetric
+part, since $G_{s}^{T}=G_{s}$ and $G_{a}^{T}=-G_{a}$
+
+Examine the quadratic form of $G_{s}$:
+
+$$
+\begin{align}
+x^{T}G_{a}x&=(x^{T}G_{a}x)^{T}=-x^{T}G_{a}x\\
+\implies
+x^{T}G_{a}x&=0
+\end{align}
+$$
+
+Therefore, the inequality above can be rewritten as:
+
+$$
+\begin{align}
+E[(x_{n}-\theta)^{T}(M(x_{n})-\alpha)]&\geq E[(x_{n}-\theta)^{T}G(\theta)(x_{n}-\theta)]\\
+&\geq E[(x_{n}-\theta)^{T}G_{s}(x_{n}-\theta)]
+\end{align}
+$$
+
+Since $G_{s}$ is symmetric, by eigenvalue decomposition, we have $G_{s}=Q\Lambda Q^{T}$ with eigenvalues sorted to $\lambda_{1} \geq ...\geq \lambda_{n}$. In our case, we have $\lambda_{1} \geq \lambda_{2}$.
+
+Then 
+
+$$
+\begin{align}
+E[(x_{n}-\theta)^{T}G_{s}(x_{n}-\theta)] &=E[(x_{n}-\theta)^{T}Q\Lambda Q^{T}(x_{n}-\theta)]\\
+&=\sum_{i=1}^{2}\lambda_{i}E[(x_{n}-\theta)^{T}q_{i}q_{i}^{T}(x_{n}-\theta)]\\
+&\geq \lambda_{2}E[||Q(x_{n}-\theta)||_{2}^{2}]=\lambda_{2}E[||x_{n}-\theta||_{2}^{2}]=\lambda_{2}b_{n}
+\end{align}
+$$
+
+In the end, we obtain
+
+$$
+\begin{align}
+b_{n+1}&=b_{n}-2a_{n}E[(x_{n}-\theta)^{T}(M(x_{n})-\alpha)]+a_{n}^{2}E[||y-\alpha||^{2}|x_{n}]\\
+&\leq b_{n}-2\lambda_{2}a_{n}b_{n}+a_{n}^{2}h^{2}\\
+&=(1-2\lambda_{2}a_{n})b_{n}+a_{n}^{2}h^{2}
+\end{align}
+$$
+
+Using the similar argument in section 1, we can conclude that the convergence rate of multivariate accelerated iE with scalar weights is $O(1/n^{\alpha}),\alpha \in (0.5,1]$.
+
+### 3. When $A_{n}$ is k by k matrix, where k is the dimension of vector $\theta$.
+
+We still take gamma case as an example, so we have $k=2$.
+
+Assumptions are the same with section 2.
+
+Firstly, we have
+
+$$
+\begin{align}
+b_{n+1}&=b_{n}-2E[(x_{n}-\theta)^{T}A_{n}(M(x_{n})-\alpha)]+E[\int_{-\infty}^{\infty}\int_{-\infty}^{\infty}(y_{n}-\alpha)^{T}A_{n}^{T}A_{n}(y_{n}-\alpha)dH(y_{n}|x_{n})]
+\end{align}
+$$
+
+In the case of $A_{n}$ being a matrix, we could not take $A_{n}$ out of the expectation directly.
+
+Similarly, by convexity:
+
+
+$$
+\begin{align}
+M_{1}(x_{n})-\alpha_{1} &\geq (\nabla M_{1}(\theta))^{T}(x_{n}-\theta)\\
+M_{2}(x_{n})-\alpha_{2} &\geq (\nabla M_{2}(\theta))^{T}(x_{n}-\theta)\\
+\end{align}
+$$
+
+Assume $A_{n}=\left(\begin{array}{cc} 
+a_{n1} & a_{n2}\\
+a_{n3} & a_{n4}
+\end{array}\right)$ and all entries are non-negative and they can't be zero at the same time.
+
+It follows that
+
+$$
+\begin{align}
+a_{n1}(M_{1}(x_{n})-\alpha_{1}) +a_{n2}(M_{2}(x_{n})-\alpha_{2}) &\geq a_{n1}(\nabla M_{1}(\theta))^{T}(x_{n}-\theta)+a_{n2}(\nabla M_{2}(\theta))^{T}(x_{n}-\theta)\\
+a_{n3}(M_{1}(x_{n})-\alpha_{1}) +a_{n4}(M_{2}(x_{n})-\alpha_{2}) &\geq a_{n3}(\nabla M_{1}(\theta))^{T}(x_{n}-\theta)+a_{n4}(\nabla M_{2}(\theta))^{T}(x_{n}-\theta)\\
+
+\implies
+(x_{n1}-\theta_{1})[a_{n1}(M_{1}(x_{n})-\alpha_{1}) +a_{n2}(M_{2}(x_{n})-\alpha_{2})] &\geq (x_{n1}-\theta_{1})[a_{n1}(\nabla M_{1}(\theta))^{T}(x_{n}-\theta)+a_{n2}(\nabla M_{2}(\theta))^{T}(x_{n}-\theta)]\\
+(x_{n2}-\theta_{2})[a_{n3}(M_{1}(x_{n})-\alpha_{1}) +a_{n4}(M_{2}(x_{n})-\alpha_{2})] &\geq (x_{n2}-\theta_{2})[a_{n3}(\nabla M_{1}(\theta))^{T}(x_{n}-\theta)+a_{n4}(\nabla M_{2}(\theta))^{T}(x_{n}-\theta)]\\
+\end{align}
+$$
+
+Expressing those inequalities in matrix form, we get
+
+$$
+\begin{align}
+E[(x_{n}-\theta)^{T}A_{n}(M(x_{n})-\alpha)] &\geq  E[(x_{n}-\theta)^{T}A_{n}\left(\begin{array}{cc} 
+(\nabla M_{1}(\theta))^{T} \\
+(\nabla M_{2}(\theta))^{T}
+\end{array}\right)(x_{n}-\theta)]\\
+&=E[(x_{n}-\theta)^{T}A_{n}G(x_{n}-\theta)]
+\end{align}
+$$
+
+By the same argument in section 2, we could obtain:
+
+$$
+\begin{align}
+E[(x_{n}-\theta)^{T}A_{n}G(x_{n}-\theta)] &=E[(x_{n}-\theta)^{T}\frac{A_{n}G+(A_{n}G)^{T}}{2}(x_{n}-\theta)]\\
+&=\frac{1}{2}E[(x_{n}-\theta)^{T}A_{n}G(x_{n}-\theta)]+\frac{1}{2}E[(x_{n}-\theta)^{T}(A_{n}G)^{T}(x_{n}-\theta)]\\
+&\geq \frac{1}{2}\beta_{2}E[(x_{n}-\theta)^{T}A_{n}(x_{n}-\theta)]+\frac{1}{2}\beta_{2}E[(x_{n}-\theta)^{T}A_{n}^{T}(x_{n}-\theta)]\\
+&\geq \beta_{2}\gamma_{2}E[||(x_{n}-\theta)||_{2}^{2}]=\beta_{2}\gamma_{2}b_{n}
+\end{align}
+$$
+
+where $\beta_{2},\gamma_{n2}$ are the smallest eigenvalues for matrices $G$ and $A_{n}$.
+
+It follows that 
+
+$$
+\begin{align}
+b_{n+1}&=b_{n}-2E[(x_{n}-\theta)^{T}A_{n}(M(x_{n})-\alpha)]+E[\int_{-\infty}^{\infty}\int_{-\infty}^{\infty}(y_{n}-\alpha)^{T}A_{n}^{T}A_{n}(y_{n}-\alpha)dH(y_{n}|x_{n})]\\
+&\leq b_{n}-2\beta_{2}\gamma_{n2}b_{n}+E[E[||A_{n}(y-\alpha)||_{2}^{2}|x_{n}]]\\
+& \leq (1-2\beta_{2}\gamma_{n2})b_{n}+||A_{n}||E[E[||y-\alpha||_{2}^{2}|x_{n}]]\\
+& \leq (1-2\beta_{2}\gamma_{n2})b_{n}+||A_{n}||^{2}h^{2}\\
+\end{align}
+$$
+
+where $||A_{n}||$ is the matrix norm induced by vectors: $||A_{n}||=\underset{x\neq0}{\operatorname{max}}\frac{||A_{n}x||}{||x||}$.
+
+Note that 
+$$
+\underset{x\neq0}{\operatorname{max}}\frac{||Ax||^{2}}{||x||^{2}}=\underset{x\neq0}{\operatorname{max}}\frac{x^{T}A^{T}Ax}{||x||^2}=\lambda_{max}(A^{T}A)
+$$
+
+Therefore we have $||A_{n}||^{2}=\lambda_{max}(A_{n}^{T}A_{n})$. In our case, $\lambda_{max}(A_{n}^{T}A_{n})=\gamma_{n1}^{2}$ where $\gamma_{n1}$ is the largest eigenvalue of square matrix $A_{n}$.
+
+Finally, we get
+
+$$
+b_{n+1}\leq  (1-2\beta_{2}\gamma_{n2})b_{n}+\gamma_{n1}^{2}h^{2}
+$$
+
+When $A_{n}$ is scalar, $\gamma_{n1}=\gamma_{n2}=a_{n}$ which is just the case in section 2. So this inequality makes sense when $A_{n}$ is a scalar.
+
+
+Based on the inequality, it is possible to adjust $A_{n}$ in an appropriate way to get a faster convergence rate.
+
+
+According to Robbins , Moron, Blum and Wolfowitz's work, we can require that $\sum_{n=1}^{\infty}\gamma_{n2}=\infty$ and $\sum_{n=1}^{\infty}\gamma_{n1}^{2}<\infty$ (i.e the  sum of all smallest eigenvalues should be infinite and the sum of squared largest eigenvalues should be finite) to make sure the convergence of accelerated iE algorithm.
+
+
+### Example: 
+
+When $A_{n}=\left(\begin{array}{cc} 
+n^{-0.7} & n^{-0.5} \\
+n^{-0.5} & n^{-0.7} 
+\end{array}\right)$, 
+
+it can be shown that $\sum_{n=1}^{\infty}\gamma_{n1}=\infty$ but $\sum_{n=1}^{\infty}\gamma_{n2}^{2}=\infty$ which implies that this weight matrix is not qualified for the convergence.
+
+Numerical check:
+
+```{r,warning=FALSE}
+library(mle.tools)
+set.seed(123)
+
+pdf <- quote(1/ (beta^alpha*gamma(alpha)) * x^(alpha - 1) *
+exp(-x/beta))
+lpdf <- quote(-alpha * log(beta) - lgamma(alpha) +
+(alpha-1) * log(x) - x / beta)    
+# negative likelihood function for gamma dist
+target_gamma=function(theta,x){
+  alpha <- theta[1]
+  beta <- theta[2]
+  n <- length(x); sumd <- sum(x);sumlogd <- sum(log(x))
+  gmll <-  n*alpha*log(beta) +n*lgamma(alpha)+sumd/beta-(alpha-1)*sumlogd
+  return(gmll)
+}
+
+
+
+iterations <- 100
+boot <- 50
+n <- 20
+alpha <- 5
+beta <- 10
+sample_gamma <-rgamma(n=n,shape= alpha,scale=beta)
+MOM_alpha <- mean(sample_gamma)^2/var(sample_gamma)
+MOM_beta <- var(sample_gamma)/ mean(sample_gamma)
+model <- optim(par =c(MOM_alpha,MOM_beta),target_gamma, x=sample_gamma,hessian = TRUE,method = "BFGS")
+mle_gamma<-model$par
+records <-matrix(NA,nrow=iterations+1,ncol = 2)
+
+records[1,] <- mle_gamma
+
+for(i in 1:iterations){
+Boot <- matrix(NA,nrow=boot,ncol = 2)
+end_loop <- FALSE
+  for(j in 1:boot){
+    sample_boot <- rgamma(n=n,shape= records[i,1],scale=records[i,2])#rexp(n=n,rate=records[i])#rgamma(n=1,shape=14,rate=records[i])
+    MOM_alpha <- mean(sample_boot)^2/var(sample_boot)
+    MOM_beta <- var(sample_boot)/ mean(sample_boot)
+    tryCatch(optim(par =c(MOM_alpha,MOM_beta),target_gamma, x=sample_boot,hessian = TRUE,method = "BFGS"), error = function(e) { end_loop <<- TRUE})
+
+  if(end_loop) { break }
+    model <- optim(par =c(MOM_alpha,MOM_beta),target_gamma, x=sample_boot,hessian = TRUE,method = "BFGS")
+    Boot[j,] <- model$par
+    
+
+  }
+  we_matrix <- matrix(c(i^{-0.7},i^{-0.5},i^{-0.5},i^{-0.7}),nrow = 2)
+  records[(i+1),] <- records[i,] + we_matrix %*% (records[1,]-colMeans(Boot))
+
+
+  if(end_loop) { break }
+}
+
+
+bc_mle_gamma <-  mle_gamma-coxsnell.bc(density = pdf, logdensity = lpdf, n = n,
+parms = c("alpha", "beta"), mle = 
+mle_gamma,
+      lower = 0)$bias 
+
+
+
+plot(records[,1],col='green',ylim = c(2,12),xlab='Iteration times',ylab = 'estimates')
+points(records[,2],col='red')
+
+abline(h=bc_mle_gamma,col='black')
+legend('topright',legend=c('iE-corrected MLE of shape','iE-corrected MLE of scale','bias-corrected MLEs'),col=c('green','red','black'),lty=c(1,NA),pch=c(NA,1))
+
+
+
+```
+
+
+```{r}
+records
+
+```
+
+
+
+When $A_{n}=\left(\begin{array}{cc} 
+n^{-0.7} & n^{-1} \\
+n^{-1} & n^{-0.7} 
+\end{array}\right)$, 
+
+it can be shown that $\sum_{n=1}^{\infty}\gamma_{n1}=\infty$ and $\sum_{n=1}^{\infty}\gamma_{n2}^{2}<\infty$ which implies that this weight matrix is qualified for the convergence.
+
+Numerical check:
+
+```{r,warning=FALSE}
+library(mle.tools)
+set.seed(456)
+
+pdf <- quote(1/ (beta^alpha*gamma(alpha)) * x^(alpha - 1) *
+exp(-x/beta))
+lpdf <- quote(-alpha * log(beta) - lgamma(alpha) +
+(alpha-1) * log(x) - x / beta)    
+# negative likelihood function for gamma dist
+target_gamma=function(theta,x){
+  alpha <- theta[1]
+  beta <- theta[2]
+  n <- length(x); sumd <- sum(x);sumlogd <- sum(log(x))
+  gmll <-  n*alpha*log(beta) +n*lgamma(alpha)+sumd/beta-(alpha-1)*sumlogd
+  return(gmll)
+}
+
+
+
+iterations <- 50
+boot <- 50
+n <- 20
+alpha <- 5
+beta <- 10
+sample_gamma <-rgamma(n=n,shape= alpha,scale=beta)
+MOM_alpha <- mean(sample_gamma)^2/var(sample_gamma)
+MOM_beta <- var(sample_gamma)/ mean(sample_gamma)
+model <- optim(par =c(MOM_alpha,MOM_beta),target_gamma, x=sample_gamma,hessian = TRUE,method = "BFGS")
+mle_gamma<-model$par
+records <-matrix(NA,nrow=iterations+1,ncol = 2)
+records_d <-matrix(NA,nrow=iterations+1,ncol = 2)
+records[1,] <- mle_gamma
+records_d[1,]  <- mle_gamma
+
+for(i in 1:iterations){
+Boot <- matrix(NA,nrow=boot,ncol = 2)
+Boot2 <- matrix(NA,nrow=boot,ncol = 2)
+  for(j in 1:boot){
+    sample_boot <- rgamma(n=n,shape= records[i,1],scale=records[i,2])#rexp(n=n,rate=records[i])#rgamma(n=1,shape=14,rate=records[i])
+    MOM_alpha <- mean(sample_boot)^2/var(sample_boot)
+    MOM_beta <- var(sample_boot)/ mean(sample_boot)
+    model <- optim(par =c(MOM_alpha,MOM_beta),target_gamma, x=sample_boot,hessian = TRUE,method = "BFGS")
+    Boot[j,] <- model$par
+    sample_boot2 <- rgamma(n=n,shape= records_d[i,1],scale=records_d[i,2])#rexp(n=n,rate=records[i])#rgamma(n=1,shape=14,rate=records[i])
+    MOM_alpha2 <- mean(sample_boot2)^2/var(sample_boot2)
+    MOM_beta2 <- var(sample_boot2)/ mean(sample_boot2)
+    model2 <- optim(par =c(MOM_alpha2,MOM_beta2),target_gamma, x=sample_boot2,hessian = TRUE,method = "BFGS")
+    Boot2[j,] <- model2$par
+  }
+  we_matrix <- matrix(c(i^{-0.7},i^{-1},i^{-1},i^{-0.7}),nrow = 2)
+  we_matrix_d <- matrix(c(i^{-0.7},0,0,i^{-0.7}),nrow = 2)
+  records[(i+1),] <- records[i,] + we_matrix %*% (records[1,]-colMeans(Boot))
+  records_d[(i+1),] <- records_d[i,] + we_matrix_d %*% (records_d[1,]-colMeans(Boot2))
+}
+
+
+bc_mle_gamma <-  mle_gamma-coxsnell.bc(density = pdf, logdensity = lpdf, n = n,
+parms = c("alpha", "beta"), mle = 
+mle_gamma,
+      lower = 0)$bias 
+
+
+plot(records[,1],col='green',ylim = c(2,12),ylab = 'estimates')
+points(records[,2],col='red')
+points(records_d[,1],col='blue')
+points(records_d[,2],col='orange')
+abline(h=bc_mle_gamma,col='black')
+
+legend(x='bottom',inset = c(0, -0.3),col = c('green','red','blue','orange','black'),legend = c('shape_matrix','scale_matrix','shape_scalar','scale_scalar','bias-corrected MLEs'),xpd = TRUE,horiz = TRUE,pch=1)
+
+```
