@@ -1,0 +1,63 @@
+---
+title: "Untitled"
+author: "Tian Qin"
+date: "2024-02-23"
+output: html_document
+---
+
+```{r}
+
+
+set.seed(42)
+require(latex2exp)
+theta <- 1
+
+n <- 20
+
+simulation_times <- 10000
+
+iteration_times <- 30
+bootstrap_times <- 100
+
+ite_l <- matrix(0,nrow=simulation_times,ncol=iteration_times+1)
+bc_a <- c()
+for(t in 1:simulation_times){
+  
+  cnorm_sample <- rnorm(n=n,mean = theta,sd=theta)
+
+  MLE <- -mean(cnorm_sample)/2+sqrt(sum(cnorm_sample^2)/n+mean(cnorm_sample)^2/4)   
+  ite_l[t,1] <- MLE
+
+  for( i in 1:iteration_times){
+    Boot <- c()
+    for(j in 1:bootstrap_times){
+      cnrom_boot <-  rnorm(n=n,mean = ite_l[t,i],sd=ite_l[t,i])#rexp(n,rate=log(2)/ite_median_est[t,i])
+
+  Boot[j] <-  -mean(cnrom_boot)/2+sqrt(sum(cnrom_boot^2)/n+mean(cnrom_boot)^2/4)# 
+    }
+
+    ite_l[t,i+1] <- ite_l[t,i]+0.5*i^(-0.7)*(-mean(Boot)+ite_l[t,1])
+    
+    
+  }
+
+
+}
+
+
+
+# plot(seq(1,iteration_times+1),colMeans(ite_l),xlab=expression(paste('iteration times', ~k)),ylab=TeX("$\\hat{\\theta}_k$"),main='Accelerated iE in one experiment')
+#abline(h=theta,col='red')
+#legend('topright',legend=c('true value','iE'),col=c('red','black'),lty=c(1,1,NA),pch=c(NA,NA,1))
+
+
+
+
+
+plot(seq(1,iteration_times+1),colMeans(ite_l),xlab=expression(paste('iteration times', ~k)),ylab=TeX("$\\hat{\\theta}_k$"),main='Accelerated iE averaged by 10000 experiments')
+abline(h=theta,col='red')
+legend('topright',legend=c('true value','iE'),col=c('red','black'),lty=c(1,1,NA),pch=c(NA,NA,1))
+
+
+
+```
