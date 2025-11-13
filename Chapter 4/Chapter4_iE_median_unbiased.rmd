@@ -136,7 +136,8 @@ for(t in 1:simulation_times){
 
 
 
-plot(seq(1,iteration_times+1),colMedians(ite_median_est),xlab=expression(paste('iteration times', ~k)),ylab=TeX("$\\hat{\\theta}_k$"),main='Accelerated iE averaged by 10000 experiments. Exp(5). n=20')
+
+plot(seq(1,iteration_times+1),colMedians(ite_median_est),xlab=expression(paste('iteration times', ~k)),ylab=TeX("$\\hat{\\theta}_k$"),main='Accelerated iE taking median by 10000 experiments. Exp(5). n=20')
 
 # points(seq(1,iteration_times+1),colMeans(V)+2*apply(V, 2, sd),type='l')
 # points(seq(1,iteration_times+1),colMeans(V)-2*apply(V, 2, sd),type='l')
@@ -147,4 +148,5 @@ legend('topright',legend=c('Analytical result','True value','iE'),col=c('blue','
 
 
 ```
+
 
